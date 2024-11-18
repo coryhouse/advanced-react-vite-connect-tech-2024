@@ -1,35 +1,55 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { set, z } from "zod";
+import "./App.css";
+import { useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+
+const todos = ["Learn React", "Learn Vite"];
+
+function useFilterSearchParams() {
+  const [params, setParams] = useSearchParams();
+  return [
+    z.string().parse(params.get("filter") || ""),
+    (filter: string) => {
+      setParams({ filter });
+    },
+  ] as const;
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [filter, setFilter] = useFilterSearchParams();
+  const [todos, setTodos] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function getTodos() {
+      const resp = await fetch("http://localhost:3001/todos");
+      const data = await resp.json();
+      setTodos(data);
+    }
+    getTodos();
+  });
+
+  // Derived state
+  const filteredTodos = todos.filter((todo) =>
+    todo.toLowerCase().includes(filter.toLowerCase())
+  );
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <form>
+        <input
+          type="text"
+          placeholder="Filter todos"
+          value={filter}
+          onChange={(e) => {
+            setParams({ filter: e.target.value });
+          }}
+        />
+        {filteredTodos.map((todo) => (
+          <li>{todo}</li>
+        ))}
+      </form>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
