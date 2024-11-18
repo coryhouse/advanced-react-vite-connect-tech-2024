@@ -1,9 +1,15 @@
-import { set, z } from "zod";
+import { z } from "zod";
 import "./App.css";
 import { useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-const todos = ["Learn React", "Learn Vite"];
+const todoSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  completed: z.boolean(),
+});
+
+type Todo = z.infer<typeof todoSchema>;
 
 function useFilterSearchParams() {
   const [params, setParams] = useSearchParams();
@@ -17,21 +23,31 @@ function useFilterSearchParams() {
 
 function App() {
   const [filter, setFilter] = useFilterSearchParams();
-  const [todos, setTodos] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [todos, setTodos] = useState<Todo[]>([]);
 
   useEffect(() => {
     async function getTodos() {
-      const resp = await fetch("http://localhost:3001/todos");
-      const data = await resp.json();
-      setTodos(data);
+      try {
+        const resp = await fetch("http://localhost:3001/tods");
+        const data = todoSchema.array().parse(await resp.json());
+        setTodos(data);
+      } catch (e) {
+        setError(e as Error);
+      } finally {
+        setLoading(false);
+      }
     }
     getTodos();
-  });
+  }, []);
 
   // Derived state
   const filteredTodos = todos.filter((todo) =>
-    todo.toLowerCase().includes(filter.toLowerCase())
+    todo.title.toLowerCase().includes(filter.toLowerCase())
   );
+
+  if (error) throw error;
 
   return (
     <>
@@ -41,11 +57,12 @@ function App() {
           placeholder="Filter todos"
           value={filter}
           onChange={(e) => {
-            setParams({ filter: e.target.value });
+            setFilter(e.target.value);
           }}
         />
+        {loading && <p>Loading...</p>}
         {filteredTodos.map((todo) => (
-          <li>{todo}</li>
+          <li key={todo.id}>{todo.title}</li>
         ))}
       </form>
     </>
